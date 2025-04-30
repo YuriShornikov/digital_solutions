@@ -8,112 +8,89 @@ const PORT = 3001;
 app.use(cors());
 app.use(bodyParser.json());
 
-let state = {
-  selected: new Set(),
+// Псевдо-глобальный массив элементов с индексами
+let globalItems = Array.from({ length: 1000000 }, (_, i) => ({
+  id: i + 1,
+  selected: false,
+  index: i, // добавляем индекс в каждый элемент
+}));
 
-  // текущий порядок
-  order: Array.from({ length: 1000000 }, (_, i) => i + 1),  
-  
-  // оригинальный порядок
-  originalOrder: Array.from({ length: 1000000 }, (_, i) => i + 1),
-
-  temporarySearchOrders: new Map(),
-};
-
-// GET /items — загрузка данных с пагинацией и поиском
+// Эндпоинт для получения элементов с фильтрацией и пагинацией
 app.get('/items', (req, res) => {
-  const offset = parseInt(req.query.offset || '0');
-  const limit = parseInt(req.query.limit || '20');
+  const offset = parseInt(req.query.offset) || 0;
+  const limit = parseInt(req.query.limit) || 20;
   const search = req.query.search || '';
 
-  let filteredOrder;
-
+  let filtered = globalItems;
   if (search) {
-    filteredOrder = state.temporarySearchOrders.get(search);
-
-    if (!filteredOrder) {
-      filteredOrder = state.originalOrder.filter(id =>
-        id.toString().includes(search)
-      );
-      state.temporarySearchOrders.set(search, [...filteredOrder]);
-    }
-  } else {
-    filteredOrder = state.order;
+    filtered = filtered.filter((item) => item.id.toString().includes(search));
   }
 
-  if (!search || search === '') {
-    filteredOrder = state.order;
-    // console.log(filteredOrder);
-  }
-
-  const items = filteredOrder.slice(offset, offset + limit).map(id => ({
-    id,
-    selected: !!state.selected.has(id),
-  }));
-
-  res.json({
-    items,
-    total: filteredOrder.length,
-  });
+  const items = filtered.slice(offset, offset + limit);
+  res.json({ items, total: filtered.length });
 });
 
-// POST /reorder — изменение порядка (глобально или внутри поиска)
-app.post('/reorder', (req, res) => {
-  const { newOrder } = req.body;
-  const { search = '' } = req.query;
-
-  if (search) {
-
-    // Изменяем порядок только внутри временного списка для конкретного поиска
-    const currentSearchOrder = state.temporarySearchOrders.get(search) || [];
-    const visibleSet = new Set(newOrder);
-    const remaining = currentSearchOrder.filter(id => !visibleSet.has(id));
-
-    // Обновляем временный порядок для конкретного поиска
-    state.temporarySearchOrders.set(search, [...newOrder, ...remaining]);
-    // console.log(`state.temporarySearchOrders`, state.temporarySearchOrders)
-  } else {
-
-    // Изменяем глобальный порядок
-    const visibleSet = new Set(newOrder);
-    const remaining = state.order.filter(id => !visibleSet.has(id));
-    state.order = [...newOrder, ...remaining];
-    // console.log(`state.order`, state.order);
-  }
-
-  res.send({ success: true });
-});
-
-// POST /select — выбор (выделение) элементов
+// Эндпоинт для изменения состояния элемента (выбран/не выбран)
 app.post('/select', (req, res) => {
-  const { ids, selected } = req.body;
+  const { id, selected } = req.body;
+  const index = globalItems.findIndex((i) => i.id === Number(id));
+  if (index !== -1) {
+    globalItems[index].selected = selected;
+    console.log("Updated selected:", globalItems[index].selected);
+  } else {
+    console.log("Item not found!");
+  }
+  res.sendStatus(200);
+});
 
-  ids.forEach(id => {
-    if (selected) {
-      state.selected.add(id);
-    } else {
-      state.selected.delete(id);
-    }
+app.post('/reorder', (req, res) => {
+  const updates = req.body; // Ожидается [{ id, index }], но нас интересует только один перемещаемый элемент
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).send({ message: 'Нет обновлений' });
+  }
+
+  const movedUpdate = updates[0];
+  console.log(movedUpdate)
+  const movedItemIndex = globalItems.findIndex(i => i.id === movedUpdate.id);
+  const movedItem = globalItems[movedItemIndex];
+  console.log(movedItem)
+
+  if (!movedItem) {
+    return res.status(404).send({ message: 'Элемент не найден' });
+  }
+
+  // Обновляем selected
+  movedItem.selected = movedUpdate.selected;
+
+  // Находим целевой индекс
+  const targetIndexValue = movedUpdate.newIndex; 
+  let targetIndex = globalItems.findIndex(i => i.index === targetIndexValue);
+
+  // Удаляем элемент из текущей позиции
+  globalItems.splice(movedItemIndex, 1);
+
+  
+
+  // console.log(targetIndex)
+
+  // Если индекс не найден (например, если последний элемент) — вставляем в конец
+  const newInsertIndex = targetIndex >= 0 ? targetIndex : globalItems.length;
+  globalItems.splice(newInsertIndex, 0, movedItem);
+
+  // Переустанавливаем индексы всех элементов в массиве
+  globalItems.forEach((item, idx) => {
+    item.index = idx;
   });
 
-  res.sendStatus(200);
+  res.status(200).send({
+    message: 'Порядок элементов обновлен',
+    items: [movedItem],
+  });
 });
 
-// POST /clear-search — сброс временного порядка по конкретному поиску
-app.post('/clear-search', (req, res) => {
-  const { search } = req.body;
-
-  // if (!search) {
-  //   // Полная очистка всех временных порядков
-  //   state.temporarySearchOrders.clear();
-  // } else {
-  //   // Очистка только конкретного поиска
-  //   state.temporarySearchOrders.delete(search);
-  // }
-
-  res.sendStatus(200);
-});
 
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
+
+

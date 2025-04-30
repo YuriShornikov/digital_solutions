@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Item } from '../types/types';
+import { Item, ReorderUpdate } from '../types/types';
 
 const BASE_URL = 'http://localhost:3001';
 
@@ -12,28 +12,20 @@ export const fetchItems = async (offset = 0, limit = 20, search = '') => {
 
 export const selectItem = async (id: number, selected: boolean) => {
   return axios.post(`${BASE_URL}/select`, {
-    ids: [id],
+    id: [id],
     selected,
   });
 };
 
-
-export const reorderItems = async (newOrder: number[], search: string) => {
-  // console.log('Sending search term:', search);
-  return axios.post(`${BASE_URL}/reorder`, 
-    { newOrder },
-    { params: { search } }
-  );
-};
-
-
-// export const clearSearch = async () => {
-//   try {
-//     const res = await axios.post(`${BASE_URL}/clear-search`, { search: '' });
-//     return res.data; // обязательно вернем данные
-//   } catch (error) {
-//     console.error('Error clearing search:', error);
-//     throw error;
-//   }
-// };
+export async function reorderItems(updates: ReorderUpdate[]) {
+  try {
+    await axios.post(`${BASE_URL}/reorder`, updates, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (error) {
+    console.error('Ошибка при reorder:', error);
+  }
+}
 

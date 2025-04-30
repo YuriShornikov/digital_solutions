@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { fetchItems, selectItem, reorderItems } from './api/api';
-import { Item } from './types/types';
+import { Item, ReorderUpdate } from './types/types';
 import { ItemRow } from './components/ItemRow';
 import { SearchInput } from './components/SearchInput';
 import './App.css';
@@ -77,14 +77,49 @@ export function App() {
 
   const onDragEnd = async (result: any) => {
     if (!result.destination) return;
+  
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+  
+    if (sourceIndex === destinationIndex) return;
+  
+    // Копируем и переставляем элемент
     const reordered = Array.from(items);
-    const [moved] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, moved);
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(destinationIndex, 0, moved);
     setItems(reordered);
+  
+    // const updates: { id: number; index: number }[] = [];
+    const updates: ReorderUpdate[] = [];
+  
+    const targetBeforeMove = items[destinationIndex];
+    console.log(targetBeforeMove)
 
-    // console.log('Search term before sending:', search);
-    await reorderItems(reordered.map((i) => i.id), search);
+
+    updates.push({
+      id: moved.id,
+      selected: moved.selected,
+      newIndex: targetBeforeMove.index,
+    });
+  
+    // Для отладки
+    console.log('%c[Reorder] Updates to send:', 'color: green; font-weight: bold;', updates);
+  
+    // Отправляем изменения на сервер
+    try {
+      await reorderItems(updates); // PATCH/POST на reorder
+  
+      // После успешного reorder — обновить данные с сервера
+      const updated = await fetchItems(0, offset + LIMIT, search); // или нужный offset
+      setItems(updated.items);
+      setTotal(updated.total);
+      setHasMore(offset + LIMIT < updated.total);
+    } catch (error) {
+      console.error('Ошибка при reorder или fetch:', error);
+      // (опционально) показать ошибку и откатить список назад
+    }
   };
+  
 
   return (
     <div className="main">
@@ -92,6 +127,7 @@ export function App() {
         value={search} 
         onChange={setSearch} 
       />
+      <div className="total-count">Всего элементов: {total}</div>
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="list">
           {(provided) => (
