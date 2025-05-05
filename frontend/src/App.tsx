@@ -26,6 +26,7 @@ export function App() {
     setSearch(initialSearch);
   }, []);
 
+  // Подгружаем первые 20 элементов
   const fetchData = async (newOffset: number, append = false) => {
     if (loading) return;
     setLoading(true);
@@ -56,7 +57,7 @@ export function App() {
     fetchData(0, false);
   }, [search]);
 
-  // Скролл
+  // Скролл, добавление 20 элементов
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el || loading || !hasMore) return;
@@ -68,6 +69,7 @@ export function App() {
     }
   };
 
+  // Выделение элементов
   const handleSelect = async (id: number, selected: boolean) => {
     await selectItem(id, selected);
     setItems((prev) =>
@@ -75,6 +77,7 @@ export function App() {
     );
   };
 
+  // Перемещение элементов
   const onDragEnd = async (result: any) => {
     if (!result.destination) return;
   
@@ -89,34 +92,29 @@ export function App() {
     reordered.splice(destinationIndex, 0, moved);
     setItems(reordered);
   
-    // const updates: { id: number; index: number }[] = [];
     const updates: ReorderUpdate[] = [];
   
     const targetBeforeMove = items[destinationIndex];
     console.log(targetBeforeMove)
 
-
+    // Обновляем элементы
     updates.push({
       id: moved.id,
       selected: moved.selected,
       newIndex: targetBeforeMove.index,
     });
   
-    // Для отладки
-    console.log('%c[Reorder] Updates to send:', 'color: green; font-weight: bold;', updates);
-  
     // Отправляем изменения на сервер
     try {
-      await reorderItems(updates); // PATCH/POST на reorder
+      await reorderItems(updates);
   
       // После успешного reorder — обновить данные с сервера
-      const updated = await fetchItems(0, offset + LIMIT, search); // или нужный offset
+      const updated = await fetchItems(0, offset + LIMIT, search);
       setItems(updated.items);
       setTotal(updated.total);
       setHasMore(offset + LIMIT < updated.total);
     } catch (error) {
       console.error('Ошибка при reorder или fetch:', error);
-      // (опционально) показать ошибку и откатить список назад
     }
   };
   

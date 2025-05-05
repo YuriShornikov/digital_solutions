@@ -1,17 +1,10 @@
-// components/SearchInput.tsx
 import { ChangeEvent } from 'react';
-
-interface SearchInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string; // Опциональный параметр
-  className?: string;   // Дополнительные пропсы при необходимости
-}
+import { SearchInputProps } from '../types/types';
 
 export const SearchInput = ({
   value,
   onChange,
-  placeholder = '', // Значение по умолчанию
+  placeholder = '',
   className = ''
 }: SearchInputProps) => {
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {

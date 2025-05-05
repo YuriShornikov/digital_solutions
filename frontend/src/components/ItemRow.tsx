@@ -1,14 +1,6 @@
 import { FC } from 'react';
-import { DraggableProvided } from '@hello-pangea/dnd';
-import { Item } from '../types/types';
+import { Props } from '../types/types';
 import './ItemRow.css'
-
-interface Props {
-  item: Item;
-  index: number;
-  provided: DraggableProvided;
-  onSelect: (id: number, selected: boolean) => void;
-}
 
 export const ItemRow: FC<Props> = ({ item, provided, onSelect }) => (
   <div

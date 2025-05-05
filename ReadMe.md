@@ -20,7 +20,7 @@ sudo npm install -g pm2
 
 ```bash
 cd /root/
-git clone https://github.com/your-repo/digital_solutions.git
+git clone https://github.com/YuriShornikov/digital_solutions.git
 ```
 
 ---
@@ -42,7 +42,7 @@ npm install
 Запустить backend сервер через PM2:
 
 ```bash
-pm2 start index.js --name digital-backend
+pm2 start server.js --name digital-backend
 pm2 save
 pm2 startup
 ```
@@ -106,7 +106,7 @@ sudo nano /etc/nginx/sites-available/default
 ```nginx
 server {
     listen 80;
-    server_name 193.227.241.62;
+    server_name 79.174.81.167;
 
     root /var/www/frontend/dist;
     index index.html;
